@@ -5,8 +5,8 @@ AI-powered candidate screening with Ashby integration.
 ## Stack
 
 - **Next.js 14** (App Router)
-- **Anthropic Claude** — scoring engine
-- **Ashby** — ATS integration via webhook
+- **Anthropic Claude** - scoring engine
+- **Ashby** - ATS integration via webhook
 - **TypeScript**
 
 ---
@@ -15,20 +15,22 @@ AI-powered candidate screening with Ashby integration.
 
 ```
 src/
-├── app/
-│   ├── api/
-│   │   ├── screen/          # POST /api/screen — manual screening
-│   │   ├── ashby-webhook/   # POST /api/ashby-webhook — Ashby inbound
-│   │   └── results/         # GET /api/results — fetch all results
-│   ├── page.tsx             # Dashboard UI
-│   └── globals.css
-├── lib/
-│   ├── screener.ts          # AI scoring engine (Claude)
-│   ├── ashby.ts             # Ashby API + webhook verification
-│   ├── rubrics.ts           # Per-role rubric store
-│   └── results.ts           # Results store
-└── types/
-    └── index.ts             # Shared types
+|-- app/
+|   |-- api/
+|   |   |-- screen/          # POST /api/screen - manual screening
+|   |   |-- ashby-webhook/   # POST /api/ashby-webhook - Ashby inbound
+|   |   |-- webhook-status/  # GET /api/webhook-status - last webhook stats
+|   |   `-- results/         # GET /api/results - fetch all results
+|   |-- page.tsx             # Dashboard UI
+|   `-- globals.css
+|-- lib/
+|   |-- screener.ts          # AI scoring engine (Claude)
+|   |-- ashby.ts             # Ashby API + webhook verification
+|   |-- rubrics.ts           # Per-role rubric store
+|   |-- results.ts           # Results store
+|   `-- webhookStatus.ts     # Webhook status + counters
+`-- types/
+    `-- index.ts             # Shared types
 ```
 
 ---
@@ -41,7 +43,7 @@ npm install
 
 # 2. Set env vars
 cp .env.local.example .env.local
-# → Fill in ANTHROPIC_API_KEY, ASHBY_API_KEY, ASHBY_WEBHOOK_SECRET
+# -> Fill in ANTHROPIC_API_KEY, ASHBY_API_KEY, ASHBY_WEBHOOK_SECRET
 
 # 3. Dev
 npm run dev
@@ -54,13 +56,13 @@ Open [http://localhost:3000](http://localhost:3000)
 ## Ashby integration setup
 
 ### 1. Get your API key
-In Ashby: **Settings → Integrations → API Keys** → create a key with `application:read` and `application:write` permissions.
+In Ashby: **Settings -> Integrations -> API Keys** -> create a key with `application:read` and `application:write` permissions.
 
 ### 2. Register the webhook
-In Ashby: **Settings → Integrations → Webhooks** → add:
-- URL: `https://your-domain.com/api/ashby-webhook`
-- Events: `applicationSubmitted`, `applicationCreated`
-- Copy the signing secret → set as `ASHBY_WEBHOOK_SECRET`
+In Ashby: **Settings -> Integrations -> Webhooks** -> add:
+- URL: `https://YOUR_VERCEL_URL/api/ashby-webhook`
+- Event: `applicationSubmitted` (keep `applicationCreated` checked if you already use it)
+- Copy the signing secret -> set as `ASHBY_WEBHOOK_SECRET`
 
 ### 3. Test with ngrok (local dev)
 ```bash
@@ -73,11 +75,12 @@ ngrok http 3000
 2. Webhook verifies HMAC signature
 3. Resume text is fetched from Ashby
 4. Rubric is looked up by `jobId` (auto-created if unknown)
-5. Claude scores the candidate (0–100, 4 dimensions)
+5. Claude scores the candidate (0-100, 4 dimensions)
 6. Result is saved locally
 7. Verdict + score pushed back to Ashby as a private note + stage change:
-   - **Pass / Review** → moves to "Review" stage
-   - **Reject** → moves to "Rejected" stage
+   - **Pass** -> moves to "Recruiter Screen"
+   - **Review** -> moves to "Application Review"
+   - **Reject** -> moves to "Archived"
 
 ---
 
@@ -101,7 +104,7 @@ const DEFAULT_RUBRICS: Record<string, Rubric> = {
 };
 ```
 
-**Production**: replace the in-memory store with a DB (Postgres, Supabase, etc.) — the interface is the same.
+**Production**: replace the in-memory store with a DB (Postgres, Supabase, etc.) - the interface is the same.
 
 ---
 
@@ -135,7 +138,7 @@ Response:
     "overallScore": 82,
     "verdict": "pass",
     "dealbreakerHit": false,
-    "dimensions": [...],
+    "dimensions": [],
     "summary": "...",
     "rejectionReason": null
   }
@@ -145,8 +148,11 @@ Response:
 ### `GET /api/results`
 Returns all screening results (newest first).
 
+### `GET /api/webhook-status`
+Returns latest webhook activity and counts.
+
 ### `POST /api/ashby-webhook`
-Ashby webhook endpoint — not meant to be called manually.
+Ashby webhook endpoint - not meant to be called manually.
 
 ---
 

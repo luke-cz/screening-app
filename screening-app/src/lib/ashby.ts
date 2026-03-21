@@ -74,9 +74,9 @@ export async function pushVerdictToAshby(
   summary: string
 ): Promise<void> {
   const stageMap: Record<string, string> = {
-    pass: "Review",
-    review: "Review",
-    reject: "Rejected",
+    pass: "Recruiter Screen",
+    review: "Application Review",
+    reject: "Archived",
   };
 
   // Add a note to the application in Ashby

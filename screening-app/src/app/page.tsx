@@ -13,6 +13,16 @@ interface LocalCandidate {
   resumeText: string;
 }
 
+interface WebhookStatus {
+  lastReceivedAt: string | null;
+  lastSuccessAt: string | null;
+  lastErrorAt: string | null;
+  lastErrorMessage: string | null;
+  receivedCount: number;
+  successCount: number;
+  errorCount: number;
+}
+
 // --- Helpers ------------------------------------------------------------------
 
 function verdictColor(v: Verdict): string {
@@ -267,6 +277,7 @@ export default function Home() {
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const [passThreshold, setPassThreshold] = useState(70);
   const [reviewThreshold, setReviewThreshold] = useState(40);
+  const [webhookStatus, setWebhookStatus] = useState<WebhookStatus | null>(null);
 
   // Poll results
   const fetchResults = async () => {
@@ -279,6 +290,21 @@ export default function Home() {
     fetchResults();
     pollingRef.current = setInterval(fetchResults, 5000);
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
+  }, []);
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch("/api/webhook-status");
+        const data = await res.json();
+        if (data.status) setWebhookStatus(data.status);
+      } catch {
+        // ignore
+      }
+    };
+    fetchStatus();
+    const id = setInterval(fetchStatus, 10000);
+    return () => clearInterval(id);
   }, []);
 
   const runScreening = async () => {
@@ -373,6 +399,48 @@ export default function Home() {
               Configure the role rubric, paste a resume, and run the AI filter.
               Ashby inbounds are screened automatically via webhook.
             </p>
+          </div>
+
+          {/* Integration status */}
+          <div style={{
+            marginBottom: 18,
+            background: "var(--bg2)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius)",
+            padding: 16,
+          }}>
+            <div style={{
+              fontSize: 12,
+              fontWeight: 500,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: "var(--text3)",
+              marginBottom: 10,
+            }}>
+              Ashby webhook status
+            </div>
+            {webhookStatus ? (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                <div style={{ fontSize: 12, color: "var(--text2)" }}>
+                  <div style={{ fontSize: 11, color: "var(--text3)" }}>Last received</div>
+                  <div>{webhookStatus.lastReceivedAt ?? "No events yet"}</div>
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text2)" }}>
+                  <div style={{ fontSize: 11, color: "var(--text3)" }}>Success / Errors</div>
+                  <div>
+                    {webhookStatus.successCount} ok / {webhookStatus.errorCount} error
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text2)" }}>
+                  <div style={{ fontSize: 11, color: "var(--text3)" }}>Last error</div>
+                  <div>{webhookStatus.lastErrorMessage ?? "None"}</div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                No webhook status yet.
+              </div>
+            )}
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
