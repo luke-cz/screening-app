@@ -136,5 +136,6 @@ export async function screenCandidate(
     summary: parsed.summary,
     rejectionReason,
     screened_at: new Date().toISOString(),
+    ashbyApplicationId: candidate.ashbyApplicationId,
   };
 }

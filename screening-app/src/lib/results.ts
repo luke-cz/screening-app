@@ -5,6 +5,9 @@ import type { ScreeningResult } from "@/types";
 
 const resultsStore: ScreeningResult[] = [];
 
+// Track processed Ashby application IDs for idempotency
+const processedAshbyApps = new Set<string>();
+
 export function saveResult(result: ScreeningResult): void {
   // Remove duplicate if re-screening the same candidate
   const idx = resultsStore.findIndex(
@@ -12,6 +15,10 @@ export function saveResult(result: ScreeningResult): void {
   );
   if (idx !== -1) resultsStore.splice(idx, 1);
   resultsStore.unshift(result); // newest first
+
+  if (result.ashbyApplicationId) {
+    processedAshbyApps.add(result.ashbyApplicationId);
+  }
 }
 
 export function getResults(): ScreeningResult[] {
@@ -24,4 +31,10 @@ export function getResultById(candidateId: string): ScreeningResult | null {
 
 export function getResultsByJob(jobId: string): ScreeningResult[] {
   return resultsStore.filter((r) => r.jobId === jobId);
+}
+
+export function hasProcessedAshbyApplication(
+  ashbyApplicationId: string
+): boolean {
+  return processedAshbyApps.has(ashbyApplicationId);
 }

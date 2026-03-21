@@ -52,6 +52,7 @@ export interface ScreeningResult {
   summary: string;
   rejectionReason: string | null;
   screened_at: string;
+  ashbyApplicationId?: string;
 }
 
 // ─── Ashby Webhook ────────────────────────────────────────────────────────────
