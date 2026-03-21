@@ -43,7 +43,7 @@ npm install
 
 # 2. Set env vars
 cp .env.local.example .env.local
-# -> Fill in ANTHROPIC_API_KEY, ASHBY_API_KEY, ASHBY_WEBHOOK_SECRET
+# -> Fill in ANTHROPIC_API_KEY, ASHBY_API_KEY, ASHBY_WEBHOOK_SECRET, ASHBY_JOB_BOARD_NAME
 
 # 3. Dev
 npm run dev
@@ -56,7 +56,10 @@ Open [http://localhost:3000](http://localhost:3000)
 ## Ashby integration setup
 
 ### 1. Get your API key
-In Ashby: **Settings -> Integrations -> API Keys** -> create a key with `application:read` and `application:write` permissions.
+In Ashby: **Settings -> Integrations -> API Keys** -> create a key with:
+- `application:read`
+- `application:write`
+- `jobs:read` (to pull job descriptions automatically)
 
 ### 2. Register the webhook
 In Ashby: **Settings -> Integrations -> Webhooks** -> add:
@@ -74,13 +77,19 @@ ngrok http 3000
 1. Ashby fires `applicationSubmitted` to `/api/ashby-webhook`
 2. Webhook verifies HMAC signature
 3. Resume text is fetched from Ashby
-4. Rubric is looked up by `jobId` (auto-created if unknown)
-5. Claude scores the candidate (0-100, 4 dimensions)
-6. Result is saved locally
-7. Verdict + score pushed back to Ashby as a private note + stage change:
+4. Job description is pulled from Ashby (via Jobs API or the public job board)
+5. Rubric is looked up by `jobId` (auto-created if unknown)
+6. If rubric is empty, it is auto-generated from the job description
+7. Claude scores the candidate (0-100, 4 dimensions)
+8. Result is saved locally
+9. Verdict + score pushed back to Ashby as a private note + stage change:
    - **Pass** -> moves to "Recruiter Screen"
    - **Review** -> moves to "Application Review"
    - **Reject** -> moves to "Archived"
+
+### Job descriptions
+Set `ASHBY_JOB_BOARD_NAME` to your Ashby jobs page name (from `https://jobs.ashbyhq.com/<name>`).
+If set, the app pulls `descriptionPlain` from the public job board API. It also tries the Ashby Jobs API as a fallback.
 
 ---
 

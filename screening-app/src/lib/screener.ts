@@ -35,15 +35,21 @@ Return exactly this structure:
 
 Scoring guide:
 - overall_score: weighted average — must-haves 50%, nice-to-haves 20%, experience 20%, trajectory 10%
+- If any must-have is not clearly met, set dealbreaker_hit = true and explain which must-have is missing
 - A dealbreaker_hit forces overall_score to 0 regardless of other scores
 - Be specific in notes — mention actual skills/years from the resume`;
 }
 
 function buildUserMessage(
-  candidate: Pick<Candidate, "name" | "resumeText" | "jobTitle">,
+  candidate: Pick<Candidate, "name" | "resumeText" | "jobTitle" | "jobDescription">,
   rubric: RubricCriteria
 ): string {
+  const desc = candidate.jobDescription
+    ? `\nJob description:\n${candidate.jobDescription}\n`
+    : "";
+
   return `Job title: ${candidate.jobTitle}
+${desc}
 
 Must-haves: ${rubric.mustHaves.length ? rubric.mustHaves.join("; ") : "none specified"}
 Nice-to-haves: ${rubric.niceToHaves.length ? rubric.niceToHaves.join("; ") : "none specified"}

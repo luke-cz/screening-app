@@ -24,6 +24,7 @@ export interface Candidate {
   resumeText: string;
   jobId: string;
   jobTitle: string;
+  jobDescription?: string;
   source: "ashby" | "manual";
   submittedAt: string;
   ashbyApplicationId?: string;

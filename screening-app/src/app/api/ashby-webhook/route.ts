@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAshbySignature, fetchResumeText, pushVerdictToAshby } from "@/lib/ashby";
+import {
+  verifyAshbySignature,
+  fetchResumeText,
+  pushVerdictToAshby,
+  fetchJobDescription,
+} from "@/lib/ashby";
 import { screenCandidate } from "@/lib/screener";
-import { getOrCreateRubric } from "@/lib/rubrics";
+import { getOrCreateRubric, upsertRubric } from "@/lib/rubrics";
 import { saveResult, hasProcessedAshbyApplication } from "@/lib/results";
+import { generateRubricFromJobDescription } from "@/lib/rubricGenerator";
 import {
   recordWebhookReceived,
   recordWebhookSuccess,
@@ -76,8 +82,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
   }
 
-  // 4. Get or create rubric for this job
+  // 4. Get job description (if available) and build rubric
+  const jobDescription = await fetchJobDescription(
+    ashbyApp.job.id,
+    ashbyApp.job.title
+  );
+
   const rubric = getOrCreateRubric(ashbyApp.job.id, ashbyApp.job.title);
+  let rubricToUse = rubric;
+  if (
+    jobDescription &&
+    rubric.criteria.mustHaves.length === 0 &&
+    rubric.criteria.niceToHaves.length === 0 &&
+    rubric.criteria.dealbreakers.length === 0
+  ) {
+    const generated = await generateRubricFromJobDescription(
+      ashbyApp.job.title,
+      jobDescription
+    );
+    if (generated) {
+      rubricToUse = { ...rubric, criteria: generated };
+      upsertRubric(rubricToUse);
+    }
+  }
 
   // 5. Build candidate object
   const candidate: Candidate = {
@@ -87,6 +114,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     resumeText,
     jobId: ashbyApp.job.id,
     jobTitle: ashbyApp.job.title,
+    jobDescription: jobDescription ?? undefined,
     source: "ashby",
     submittedAt: ashbyApp.createdAt,
     ashbyApplicationId: ashbyApp.id,
@@ -95,9 +123,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // 6. Run AI screening
   const result = await screenCandidate(
     candidate,
-    rubric.criteria,
-    rubric.passThreshold,
-    rubric.reviewThreshold
+    rubricToUse.criteria,
+    rubricToUse.passThreshold,
+    rubricToUse.reviewThreshold
   );
 
   // 7. Save result locally

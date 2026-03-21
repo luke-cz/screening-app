@@ -2,6 +2,7 @@
 // Docs: https://developers.ashbyhq.com/reference
 
 const ASHBY_BASE = "https://api.ashbyhq.com";
+const ASHBY_PUBLIC_BASE = "https://api.ashbyhq.com/posting-api";
 
 async function ashbyPost<T>(endpoint: string, body: unknown): Promise<T> {
   const apiKey = process.env.ASHBY_API_KEY;
@@ -63,6 +64,74 @@ export async function fetchResumeText(
     console.error("[Ashby] fetchResumeText error:", err);
     return null;
   }
+}
+
+function stripHtml(input: string): string {
+  return input.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function extractDescription(source: unknown): string | null {
+  if (!source || typeof source !== "object") return null;
+  const s = source as Record<string, unknown>;
+  const candidates = [
+    s.descriptionPlain,
+    s.description,
+    s.descriptionText,
+    s.jobDescription,
+    s.jobDescriptionPlain,
+    s.descriptionHtml,
+    (s.descriptionParts as { descriptionBody?: string } | undefined)?.descriptionBody,
+  ];
+
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim()) {
+      return c.includes("<") ? stripHtml(c) : c.trim();
+    }
+  }
+  return null;
+}
+
+export async function fetchJobDescription(
+  jobId: string,
+  jobTitle: string
+): Promise<string | null> {
+  const jobBoard = process.env.ASHBY_JOB_BOARD_NAME;
+
+  // 1) Try public job postings API (no auth) if job board name is configured
+  if (jobBoard) {
+    try {
+      const res = await fetch(
+        `${ASHBY_PUBLIC_BASE}/job-board/${jobBoard}?includeCompensation=false`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const jobs = Array.isArray(data?.jobs) ? data.jobs : [];
+        const match = jobs.find(
+          (j: { title?: string }) =>
+            typeof j?.title === "string" &&
+            j.title.trim().toLowerCase() === jobTitle.trim().toLowerCase()
+        );
+        const desc = extractDescription(match);
+        if (desc) return desc;
+      }
+    } catch (err) {
+      console.warn("[Ashby] Public job board fetch failed:", err);
+    }
+  }
+
+  // 2) Try Ashby API job.info (requires jobsRead)
+  try {
+    const info = await ashbyPost<{ results: Record<string, unknown> }>(
+      "/job.info",
+      { jobId }
+    );
+    const desc = extractDescription(info?.results);
+    if (desc) return desc;
+  } catch (err) {
+    console.warn("[Ashby] job.info fetch failed:", err);
+  }
+
+  return null;
 }
 
 // ─── Push verdict back to Ashby ──────────────────────────────────────────────
