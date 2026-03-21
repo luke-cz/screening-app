@@ -143,7 +143,7 @@ export async function pushVerdictToAshby(
   summary: string
 ): Promise<void> {
   const stageMap: Record<string, string> = {
-    pass: "Recruiter Screen",
+    pass: "AI Screen",
     review: "Application Review",
     reject: "Archived",
   };
