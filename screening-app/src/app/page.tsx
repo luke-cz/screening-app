@@ -278,6 +278,9 @@ export default function Home() {
   const [passThreshold, setPassThreshold] = useState(70);
   const [reviewThreshold, setReviewThreshold] = useState(40);
   const [webhookStatus, setWebhookStatus] = useState<WebhookStatus | null>(null);
+  const [rescreenCount, setRescreenCount] = useState(10);
+  const [rescreening, setRescreening] = useState(false);
+  const [rescreenMessage, setRescreenMessage] = useState<string | null>(null);
 
   // Poll results
   const fetchResults = async () => {
@@ -338,6 +341,32 @@ export default function Home() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const runRescreen = async () => {
+    setRescreening(true);
+    setRescreenMessage(null);
+    try {
+      const res = await fetch("/api/ashby-rescreen", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limit: rescreenCount }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRescreenMessage(
+          `Screened ${data.screened}, skipped ${data.skipped}, failed ${data.failed}`
+        );
+        fetchResults();
+      } else {
+        setRescreenMessage(data.error ?? "Rescreen failed");
+      }
+    } catch (err) {
+      setRescreenMessage("Rescreen failed");
+      console.error(err);
+    } finally {
+      setRescreening(false);
     }
   };
 
@@ -441,6 +470,73 @@ export default function Home() {
                 No webhook status yet.
               </div>
             )}
+          </div>
+
+          {/* Rescreen panel */}
+          <div style={{
+            marginBottom: 18,
+            background: "var(--bg2)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius)",
+            padding: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+          }}>
+            <div>
+              <div style={{
+                fontSize: 12,
+                fontWeight: 500,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                color: "var(--text3)",
+                marginBottom: 6,
+              }}>
+                Rescreen latest Ashby applicants
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text2)" }}>
+                Use this if the app was offline and you want to catch missed applicants.
+              </div>
+              {rescreenMessage && (
+                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 6 }}>
+                  {rescreenMessage}
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="number"
+                min={1}
+                max={25}
+                value={rescreenCount}
+                onChange={(e) => setRescreenCount(Number(e.target.value))}
+                style={{
+                  width: 80,
+                  background: "var(--bg)",
+                  border: "1px solid var(--border2)",
+                  borderRadius: "var(--radius-sm)",
+                  padding: "7px 10px",
+                  color: "var(--text)",
+                  fontSize: 12,
+                  fontFamily: "var(--font)",
+                  outline: "none",
+                }}
+              />
+              <button onClick={runRescreen} disabled={rescreening} style={{
+                padding: "7px 14px",
+                background: rescreening ? "var(--bg3)" : "var(--accent2)",
+                border: "none",
+                borderRadius: "var(--radius-sm)",
+                color: rescreening ? "var(--text3)" : "#022c22",
+                fontSize: 12,
+                cursor: rescreening ? "not-allowed" : "pointer",
+                fontFamily: "var(--font)",
+              }}>
+                {rescreening ? "Rescreening..." : "Rescreen"}
+              </button>
+            </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>

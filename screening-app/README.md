@@ -60,8 +60,8 @@ Open http://localhost:3000
 Ashby -> Settings -> Integrations -> API Keys
 
 Required permissions:
-- application:read
-- application:write
+- candidates:read (applications + resumes)
+- candidates:write (notes + stage changes)
 - jobs:read (to pull job descriptions)
 
 ### 2. Register the webhook
@@ -128,6 +128,7 @@ src/
 
 - `POST /api/screen` - manual screening (UI)
 - `POST /api/ashby-webhook` - Ashby inbound webhook
+- `POST /api/ashby-rescreen` - rescreen latest Ashby applicants
 - `GET /api/results` - list screening results
 - `GET /api/webhook-status` - recent webhook activity
 

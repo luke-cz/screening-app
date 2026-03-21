@@ -25,22 +25,49 @@ async function ashbyPost<T>(endpoint: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export async function listRecentApplications(limit = 10): Promise<any[]> {
+  const safeLimit = Math.max(1, Math.min(limit, 25));
+  const res = await ashbyPost<{ results?: any[] }>(
+    "/application.list",
+    { limit: safeLimit }
+  );
+  return Array.isArray(res?.results) ? res.results : [];
+}
+
+export async function fetchApplicationInfo(
+  applicationId: string
+): Promise<any | null> {
+  try {
+    const app = await ashbyPost<{ results?: any }>(
+      "/application.info",
+      { applicationId }
+    );
+    if (!app?.results) return null;
+    return app.results.application ?? app.results;
+  } catch (err) {
+    console.error("[Ashby] fetchApplicationInfo error:", err);
+    return null;
+  }
+}
 // ─── Fetch resume text from an application ───────────────────────────────────
 
 export async function fetchResumeText(
-  applicationId: string
+  applicationId: string,
+  downloadUrl?: string
 ): Promise<string | null> {
   try {
-    // 1. Get application details (includes resume file URL)
-    const app = await ashbyPost<{
-      results: { resumeFileHandle?: { downloadUrl: string } };
-    }>("/application.info", { applicationId });
-
-    const downloadUrl = app?.results?.resumeFileHandle?.downloadUrl;
-    if (!downloadUrl) return null;
+    // 1. Get application details (includes resume file URL) if not provided
+    let resumeUrl = downloadUrl;
+    if (!resumeUrl) {
+      const app = await ashbyPost<{
+        results: { resumeFileHandle?: { downloadUrl: string } };
+      }>("/application.info", { applicationId });
+      resumeUrl = app?.results?.resumeFileHandle?.downloadUrl;
+    }
+    if (!resumeUrl) return null;
 
     // 2. Fetch the resume file (PDF or plain text)
-    const fileRes = await fetch(downloadUrl);
+    const fileRes = await fetch(resumeUrl);
     if (!fileRes.ok) return null;
 
     const contentType = fileRes.headers.get("content-type") ?? "";
