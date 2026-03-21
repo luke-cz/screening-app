@@ -117,8 +117,31 @@ export function verifyAshbySignature(
     .update(rawBody)
     .digest("hex");
 
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expected)
-  );
+  const decodeSignature = (sig: string): Buffer | null => {
+    const trimmed = sig.trim();
+    const cleaned = trimmed.startsWith("sha256=")
+      ? trimmed.slice("sha256=".length)
+      : trimmed;
+
+    if (/^[0-9a-fA-F]+$/.test(cleaned) && cleaned.length % 2 === 0) {
+      return Buffer.from(cleaned, "hex");
+    }
+
+    try {
+      const b64 = Buffer.from(cleaned, "base64");
+      if (b64.length > 0) return b64;
+    } catch {
+      // fall through
+    }
+
+    // Fallback to raw string comparison buffer
+    return Buffer.from(cleaned, "utf8");
+  };
+
+  const sigBuf = decodeSignature(signature);
+  const expBuf = Buffer.from(expected, "hex");
+
+  if (!sigBuf || sigBuf.length !== expBuf.length) return false;
+
+  return crypto.timingSafeEqual(sigBuf, expBuf);
 }

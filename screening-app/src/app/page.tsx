@@ -66,7 +66,7 @@ function TagInput({
             {t}
             <button onClick={() => setTags(tags.filter((x) => x !== t))}
               style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text3)", fontSize: 14, lineHeight: 1, padding: 0 }}>
-              ×
+              x
             </button>
           </span>
         ))}
