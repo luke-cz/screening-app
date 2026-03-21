@@ -1,13 +1,94 @@
-# Inbound Auto-Screening
+# Inbound Auto-Screening for Ashby
 
-AI-powered candidate screening with Ashby integration.
+This project is a lightweight AI screening layer that plugs into Ashby. When a candidate applies, Ashby sends a webhook to this app, the resume is analyzed against the role, and the candidate is routed to the right stage with a short, recruiter-friendly summary.
+
+## What it does
+
+- Listens for new inbound applications from Ashby
+- Pulls the resume and job description automatically
+- Generates a rubric from the job description the first time a role appears
+- Screens the candidate with consistent scoring and evidence
+- Writes a private note back to Ashby and moves the candidate to the right stage
+
+## How it decides
+
+- **Must-haves** are enforced as hard requirements
+- **Nice-to-haves** improve the score but are not required
+- **Dealbreakers** force a reject even if scores are high
+
+Verdict rules:
+- Pass: score >= 70
+- Review: score 40-69
+- Reject: score < 40 or dealbreaker hit
+
+## Stage mapping in Ashby
+
+- **Pass** -> AI Screen
+- **Review** -> Application Review
+- **Reject** -> Archived
 
 ## Stack
 
-- **Next.js 14** (App Router)
-- **Anthropic Claude** - scoring engine
-- **Ashby** - ATS integration via webhook
-- **TypeScript**
+- Next.js 14 (App Router)
+- Anthropic Claude (screening engine)
+- Ashby Webhooks + API
+- TypeScript
+
+---
+
+## Quick start
+
+```bash
+# 1. Install
+npm install
+
+# 2. Set env vars
+cp .env.local.example .env.local
+# -> Fill in ANTHROPIC_API_KEY, ASHBY_API_KEY, ASHBY_WEBHOOK_SECRET, ASHBY_JOB_BOARD_NAME
+
+# 3. Dev
+npm run dev
+```
+
+Open http://localhost:3000
+
+---
+
+## Ashby setup
+
+### 1. Create an API key
+Ashby -> Settings -> Integrations -> API Keys
+
+Required permissions:
+- application:read
+- application:write
+- jobs:read (to pull job descriptions)
+
+### 2. Register the webhook
+Ashby -> Settings -> Integrations -> Webhooks -> Add
+
+Use:
+- URL: https://screening-app-black.vercel.app/api/ashby-webhook
+- Event: applicationSubmitted
+- Secret token: generate one and set it in Vercel as `ASHBY_WEBHOOK_SECRET`
+
+### 3. Environment variables (Vercel)
+- ANTHROPIC_API_KEY
+- ASHBY_API_KEY
+- ASHBY_WEBHOOK_SECRET
+- ASHBY_JOB_BOARD_NAME = yeifinance
+
+---
+
+## How it works (technical)
+
+1. Ashby fires `applicationSubmitted` to `/api/ashby-webhook`
+2. Webhook verifies HMAC signature
+3. Resume text is fetched from Ashby
+4. Job description is pulled from Ashby (public job board or Jobs API)
+5. If no rubric exists yet, one is generated from the job description
+6. Claude scores the candidate (0-100 with 4 dimensions)
+7. Result is saved and pushed back to Ashby as a private note + stage move
 
 ---
 
@@ -26,6 +107,7 @@ src/
 |-- lib/
 |   |-- screener.ts          # AI scoring engine (Claude)
 |   |-- ashby.ts             # Ashby API + webhook verification
+|   |-- rubricGenerator.ts   # Auto-rubric from job descriptions
 |   |-- rubrics.ts           # Per-role rubric store
 |   |-- results.ts           # Results store
 |   `-- webhookStatus.ts     # Webhook status + counters
@@ -35,142 +117,25 @@ src/
 
 ---
 
-## Quick start
+## Notes
 
-```bash
-# 1. Install
-npm install
-
-# 2. Set env vars
-cp .env.local.example .env.local
-# -> Fill in ANTHROPIC_API_KEY, ASHBY_API_KEY, ASHBY_WEBHOOK_SECRET, ASHBY_JOB_BOARD_NAME
-
-# 3. Dev
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000)
+- The current data store is in-memory for speed. For production, swap in a database.
+- Idempotency is in-memory. For scale, store processed application IDs in a DB.
 
 ---
 
-## Ashby integration setup
+## API endpoints
 
-### 1. Get your API key
-In Ashby: **Settings -> Integrations -> API Keys** -> create a key with:
-- `application:read`
-- `application:write`
-- `jobs:read` (to pull job descriptions automatically)
-
-### 2. Register the webhook
-In Ashby: **Settings -> Integrations -> Webhooks** -> add:
-- URL: `https://screening-app-black.vercel.app/api/ashby-webhook`
-- Event: `applicationSubmitted` (keep `applicationCreated` checked if you already use it)
-- Copy the signing secret -> set as `ASHBY_WEBHOOK_SECRET`
-
-### 3. Test with ngrok (local dev)
-```bash
-ngrok http 3000
-# Use the ngrok URL as your webhook endpoint in Ashby
-```
-
-### What happens on a new inbound
-1. Ashby fires `applicationSubmitted` to `/api/ashby-webhook`
-2. Webhook verifies HMAC signature
-3. Resume text is fetched from Ashby
-4. Job description is pulled from Ashby (via Jobs API or the public job board)
-5. Rubric is looked up by `jobId` (auto-created if unknown)
-6. If rubric is empty, it is auto-generated from the job description
-7. Claude scores the candidate (0-100, 4 dimensions)
-8. Result is saved locally
-9. Verdict + score pushed back to Ashby as a private note + stage change:
-   - **Pass** -> moves to "Recruiter Screen"
-   - **Review** -> moves to "Application Review"
-   - **Reject** -> moves to "Archived"
-
-### Job descriptions
-Set `ASHBY_JOB_BOARD_NAME` to your Ashby jobs page name (from `https://jobs.ashbyhq.com/<name>`).
-If set, the app pulls `descriptionPlain` from the public job board API. It also tries the Ashby Jobs API as a fallback.
+- `POST /api/screen` - manual screening (UI)
+- `POST /api/ashby-webhook` - Ashby inbound webhook
+- `GET /api/results` - list screening results
+- `GET /api/webhook-status` - recent webhook activity
 
 ---
 
-## Per-role rubrics
+## Roadmap
 
-Edit `src/lib/rubrics.ts` to add rubrics for your roles:
-
-```ts
-const DEFAULT_RUBRICS: Record<string, Rubric> = {
-  "ashby-job-id-here": {
-    jobId: "ashby-job-id-here",
-    jobTitle: "Senior Frontend Engineer",
-    criteria: {
-      mustHaves: ["5+ years React", "TypeScript", "Team leadership"],
-      niceToHaves: ["Next.js", "GraphQL"],
-      dealbreakers: ["Requires visa sponsorship"],
-    },
-    passThreshold: 70,
-    reviewThreshold: 40,
-  },
-};
-```
-
-**Production**: replace the in-memory store with a DB (Postgres, Supabase, etc.) - the interface is the same.
-
----
-
-## API reference
-
-### `POST /api/screen`
-Manual screening endpoint.
-
-```json
-{
-  "candidate": {
-    "name": "Jane Smith",
-    "email": "jane@example.com",
-    "jobId": "my-job-id",
-    "jobTitle": "Senior Frontend Engineer",
-    "resumeText": "..."
-  },
-  "rubric": {
-    "mustHaves": ["5+ years React"],
-    "niceToHaves": ["GraphQL"],
-    "dealbreakers": []
-  }
-}
-```
-
-Response:
-```json
-{
-  "success": true,
-  "result": {
-    "overallScore": 82,
-    "verdict": "pass",
-    "dealbreakerHit": false,
-    "dimensions": [],
-    "summary": "...",
-    "rejectionReason": null
-  }
-}
-```
-
-### `GET /api/results`
-Returns all screening results (newest first).
-
-### `GET /api/webhook-status`
-Returns latest webhook activity and counts.
-
-### `POST /api/ashby-webhook`
-Ashby webhook endpoint - not meant to be called manually.
-
----
-
-## Productionising checklist
-
-- [ ] Replace in-memory stores (`rubrics.ts`, `results.ts`) with a real DB
-- [ ] Add PDF parsing for resume extraction (add `pdf-parse`)
-- [ ] Add auth to the dashboard
-- [ ] Add email notifications on new Pass candidates (Resend/Postmark)
-- [ ] Add retry logic for Ashby API calls
-- [ ] Deploy to Vercel / Railway / Fly.io
-- [ ] Set `ASHBY_WEBHOOK_SECRET` in production env
+- Persistent DB (rubrics + results)
+- PDF parsing for resume extraction
+- Auth gate for dashboard
+- Notifications for Pass candidates
