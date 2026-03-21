@@ -60,7 +60,7 @@ In Ashby: **Settings -> Integrations -> API Keys** -> create a key with `applica
 
 ### 2. Register the webhook
 In Ashby: **Settings -> Integrations -> Webhooks** -> add:
-- URL: `https://YOUR_VERCEL_URL/api/ashby-webhook`
+- URL: `https://screening-app-black.vercel.app/api/ashby-webhook`
 - Event: `applicationSubmitted` (keep `applicationCreated` checked if you already use it)
 - Copy the signing secret -> set as `ASHBY_WEBHOOK_SECRET`
 
