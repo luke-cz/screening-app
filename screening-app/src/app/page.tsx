@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { ScreeningResult, RubricCriteria, Verdict } from "@/types";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// --- Types --------------------------------------------------------------------
 
 interface LocalCandidate {
   name: string;
@@ -13,7 +13,7 @@ interface LocalCandidate {
   resumeText: string;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// --- Helpers ------------------------------------------------------------------
 
 function verdictColor(v: Verdict): string {
   return v === "pass" ? "var(--pass)" : v === "review" ? "var(--review)" : "var(--reject)";
@@ -90,7 +90,7 @@ function TagInput({
   );
 }
 
-// ─── Result card ──────────────────────────────────────────────────────────────
+// --- Result card --------------------------------------------------------------
 
 function ResultCard({ r, active, onClick }: { r: ScreeningResult; active: boolean; onClick: () => void }) {
   return (
@@ -130,7 +130,7 @@ function ResultCard({ r, active, onClick }: { r: ScreeningResult; active: boolea
   );
 }
 
-// ─── Detail panel ─────────────────────────────────────────────────────────────
+// --- Detail panel -------------------------------------------------------------
 
 function DetailPanel({ r }: { r: ScreeningResult }) {
   return (
@@ -149,7 +149,7 @@ function DetailPanel({ r }: { r: ScreeningResult }) {
             background: verdictBg(r.verdict), color: verdictColor(r.verdict),
             border: `1px solid ${verdictColor(r.verdict)}33`, textTransform: "uppercase", letterSpacing: "0.05em",
           }}>
-            {r.dealbreakerHit ? "Dealbreaker hit — " : ""}{r.verdict}
+            {r.dealbreakerHit ? "Dealbreaker hit  -  " : ""}{r.verdict}
           </span>
         </div>
       </div>
@@ -221,7 +221,7 @@ function DetailPanel({ r }: { r: ScreeningResult }) {
   );
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+// --- Main page ----------------------------------------------------------------
 
 const INITIAL_RUBRIC: RubricCriteria = {
   mustHaves: ["5+ years React", "TypeScript", "Team leadership"],
@@ -234,24 +234,24 @@ const INITIAL_CANDIDATE: LocalCandidate = {
   email: "jane@example.com",
   jobId: "manual",
   jobTitle: "Senior Frontend Engineer",
-  resumeText: `Jane Smith — Senior Software Engineer
+  resumeText: `Jane Smith  -  Senior Software Engineer
 jane@example.com | Warsaw, Poland
 
 Experience
-──────────
-FinTech Startup — Lead Frontend Engineer (2020–2024, 4 years)
+----------
+FinTech Startup  -  Lead Frontend Engineer (2020-2024, 4 years)
 - Architected React + TypeScript frontend serving 200k users
 - Led team of 4 engineers, ran sprint planning and code reviews
 - Delivered 3 major product launches on schedule
 - Introduced GraphQL, cutting API calls by 40%
 
-Agency Co — Frontend Developer (2018–2020, 2 years)
+Agency Co  -  Frontend Developer (2018-2020, 2 years)
 - Built React SPAs for 8 enterprise clients
 - Worked closely with design team using Figma
 
 Education
-──────────
-BSc Computer Science — Warsaw University of Technology (2018)
+----------
+BSc Computer Science  -  Warsaw University of Technology (2018)
 
 Skills: React, TypeScript, Next.js, Node.js, GraphQL, Figma, Jest, Tailwind`,
 };
@@ -362,7 +362,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ── SCREEN TAB ──────────────────────────────────────────────────────── */}
+      {/* -- SCREEN TAB -------------------------------------------------------- */}
       {tab === "screen" && (
         <div style={{ maxWidth: 900, margin: "0 auto", padding: "32px 24px" }}>
           <div style={{ marginBottom: 28 }}>
@@ -514,7 +514,7 @@ export default function Home() {
                 <svg width="14" height="14" viewBox="0 0 14 14" style={{ animation: "spin 0.7s linear infinite" }}>
                   <circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="22 10"/>
                 </svg>
-                Screening…
+                Screening...
               </>
             ) : "Screen candidate"}
           </button>
@@ -522,7 +522,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* ── RESULTS TAB ─────────────────────────────────────────────────────── */}
+      {/* -- RESULTS TAB ------------------------------------------------------- */}
       {tab === "results" && (
         <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", height: "calc(100vh - 57px)" }}>
           {/* Sidebar */}
