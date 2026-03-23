@@ -431,10 +431,16 @@ export default function Home() {
               .map(([k, v]) => `${k}: ${v}`)
               .join(", ")
           : "";
+        const sampleLine =
+          Array.isArray(data.samples) && data.samples.length
+            ? ` | sample: ${data.samples
+                .map((s: { id: string; hasResume: boolean }) => `${s.id} resume=${s.hasResume}`)
+                .join(", ")}`
+            : "";
         setRescreenMessage(
           `Screened ${data.screened}, skipped ${data.skipped}, failed ${data.failed}${
             reasons ? ` (${reasons})` : ""
-          }`
+          }${sampleLine}`
         );
         fetchResults();
       } else {

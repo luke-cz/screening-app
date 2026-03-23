@@ -37,6 +37,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     let skipped = 0;
     let failed = 0;
     const failureReasons: Record<string, number> = {};
+    const samples: Array<{ id: string; reason: string; hasResume: boolean }> = [];
 
     for (const item of sorted) {
       const app = await fetchApplicationInfo(item.id);
@@ -65,8 +66,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           (failureReasons.resume_missing_or_unparsed ?? 0) + 1;
         console.warn(
           "[Rescreen] Resume missing or could not be parsed",
-          JSON.stringify({ id: app.id })
+          JSON.stringify({
+            id: app.id,
+            hasResume: Boolean(app?.resumeFileHandle?.downloadUrl),
+          })
         );
+        if (samples.length < 5) {
+          samples.push({
+            id: app.id,
+            reason: "resume_missing_or_unparsed",
+            hasResume: Boolean(app?.resumeFileHandle?.downloadUrl),
+          });
+        }
         failed += 1;
         continue;
       }
@@ -146,6 +157,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       skipped,
       failed,
       failureReasons,
+      samples,
     });
   } catch (err) {
     console.error("[/api/ashby-rescreen]", err);
