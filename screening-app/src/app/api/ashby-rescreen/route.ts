@@ -86,17 +86,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         continue;
       }
 
+      const candidateId = app?.candidate?.id ?? app?.candidateId;
       const resumeText = await fetchResumeText(
         app.id,
         app?.resumeFileHandle?.downloadUrl,
-        app?.candidate?.id
+        candidateId
       );
       if (!resumeText) {
-        const noResume = !app?.resumeFileHandle?.downloadUrl;
         const fileIdCount = findFileIds(app).length;
-        const reasonKey = noResume
-          ? "resume_missing"
-          : "resume_unparsed";
+        const reasonKey =
+          fileIdCount > 0 ? "resume_unparsed_or_download_failed" : "resume_missing";
         failureReasons[reasonKey] =
           (failureReasons[reasonKey] ?? 0) + 1;
         console.warn(
@@ -105,6 +104,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             id: app.id,
             hasResume: Boolean(app?.resumeFileHandle?.downloadUrl),
             fileIds: fileIdCount,
+            candidateId,
           })
         );
         if (samples.length < 5) {
@@ -112,9 +112,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             id: app.id,
             reason: reasonKey,
             hasResume: Boolean(app?.resumeFileHandle?.downloadUrl),
+            fileIds: fileIdCount,
           });
         }
-        if (noResume) {
+        if (reasonKey === "resume_missing") {
           skipped += 1;
         } else {
           failed += 1;

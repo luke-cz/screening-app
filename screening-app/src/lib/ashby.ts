@@ -12,6 +12,7 @@ async function ashbyPost<T>(endpoint: string, body: unknown): Promise<T> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Accept: "application/json; version=1",
       Authorization: `Basic ${Buffer.from(apiKey + ":").toString("base64")}`,
     },
     body: JSON.stringify(body),
@@ -75,6 +76,13 @@ function extractResumeHandle(source: any): { downloadUrl?: string; fileId?: stri
     null;
 
   if (handle?.downloadUrl || handle?.fileId) return handle;
+
+  // Some responses nest the application or candidate object
+  const nested = s?.application ?? s?.candidate ?? null;
+  if (nested) {
+    const nestedHandle = extractResumeHandle(nested);
+    if (nestedHandle) return nestedHandle;
+  }
 
   const fileId =
     s?.resumeFileId ??
@@ -150,6 +158,7 @@ export async function fetchResumeText(
         results: {
           resumeFileHandle?: { downloadUrl?: string; fileId?: string };
           candidate?: { id?: string };
+          candidateId?: string;
         };
       }>("/application.info", { applicationId });
       const handle = extractResumeHandle(app?.results);
@@ -167,7 +176,11 @@ export async function fetchResumeText(
           }
         }
       }
-      const cid = candidateId ?? app?.results?.candidate?.id;
+      const cid =
+        candidateId ??
+        app?.results?.candidate?.id ??
+        app?.results?.candidateId ??
+        null;
       if (!resumeUrl && cid) {
         resumeUrl = await fetchCandidateResumeDownloadUrl(cid);
       }

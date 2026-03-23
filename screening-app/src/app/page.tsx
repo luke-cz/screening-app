@@ -435,7 +435,7 @@ export default function Home() {
         const sampleLine =
           Array.isArray(data.samples) && data.samples.length
             ? ` | sample: ${data.samples
-                .map((s: { id: string; hasResume: boolean }) => `${s.id} resume=${s.hasResume}`)
+                .map((s: { id: string; hasResume: boolean; fileIds?: number }) => `${s.id} resume=${s.hasResume} fileIds=${s.fileIds ?? 0}`)
                 .join(", ")}`
             : "";
         setRescreenMessage(
