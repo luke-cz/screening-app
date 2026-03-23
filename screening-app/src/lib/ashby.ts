@@ -214,8 +214,14 @@ async function fetchCandidateResumeDownloadUrl(candidateId: string): Promise<str
     if (handle?.fileId) return await fetchFileDownloadUrl(handle.fileId);
     const handles = [] as FileHandle[];
     collectFileHandles(info?.results, handles);
-    const url = await resolveDownloadUrlFromHandles(handles, { candidateId });
+    let url = await resolveDownloadUrlFromHandles(handles, { candidateId });
     if (url) return url;
+
+    const ids = findFileIds(info?.results);
+    for (const id of ids) {
+      url = await fetchFileDownloadUrl(id);
+      if (url) return url;
+    }
     return null;
   } catch (err) {
     console.warn("[Ashby] candidate.info fetch failed:", err);
@@ -248,6 +254,16 @@ export async function fetchResumeText(
         const handles = [] as FileHandle[];
         collectFileHandles(app?.results, handles);
         resumeUrl = await resolveDownloadUrlFromHandles(handles, { applicationId });
+      }
+      if (!resumeUrl) {
+        const ids = findFileIds(app?.results);
+        for (const id of ids) {
+          const url = await fetchFileDownloadUrl(id);
+          if (url) {
+            resumeUrl = url;
+            break;
+          }
+        }
       }
       const cid =
         candidateId ??
