@@ -18,6 +18,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const limitRaw = typeof body?.limit === "number" ? body.limit : 10;
     const force = Boolean(body?.force);
     const limit = Math.max(1, Math.min(limitRaw, 25));
+    const targetStageName = "Application Review";
 
     const list = await listRecentApplications(limit);
 
@@ -39,6 +40,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const failureReasons: Record<string, number> = {};
     const samples: Array<{ id: string; reason: string; hasResume: boolean }> = [];
 
+    const getStageName = (app: any): string | null => {
+      return (
+        app?.interviewStage?.name ??
+        app?.currentStage?.name ??
+        app?.stage?.name ??
+        app?.interviewStageName ??
+        app?.currentStageName ??
+        app?.stageName ??
+        null
+      );
+    };
+
     for (const item of sorted) {
       const app = await fetchApplicationInfo(item.id);
       if (!app?.id || !app?.candidate || !app?.job?.id || !app?.job?.title) {
@@ -52,6 +65,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         continue;
       }
 
+      const stageName = getStageName(app);
+      if (stageName && stageName !== targetStageName) {
+        failureReasons.not_in_application_review =
+          (failureReasons.not_in_application_review ?? 0) + 1;
+        if (samples.length < 5) {
+          samples.push({
+            id: app.id,
+            reason: "not_in_application_review",
+            hasResume: Boolean(app?.resumeFileHandle?.downloadUrl),
+          });
+        }
+        skipped += 1;
+        continue;
+      }
+
       if (!force && hasProcessedAshbyApplication(app.id)) {
         skipped += 1;
         continue;
@@ -62,8 +90,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         app?.resumeFileHandle?.downloadUrl
       );
       if (!resumeText) {
-        failureReasons.resume_missing_or_unparsed =
-          (failureReasons.resume_missing_or_unparsed ?? 0) + 1;
+        const noResume = !app?.resumeFileHandle?.downloadUrl;
+        const reasonKey = noResume
+          ? "resume_missing"
+          : "resume_unparsed";
+        failureReasons[reasonKey] =
+          (failureReasons[reasonKey] ?? 0) + 1;
         console.warn(
           "[Rescreen] Resume missing or could not be parsed",
           JSON.stringify({
@@ -74,11 +106,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         if (samples.length < 5) {
           samples.push({
             id: app.id,
-            reason: "resume_missing_or_unparsed",
+            reason: reasonKey,
             hasResume: Boolean(app?.resumeFileHandle?.downloadUrl),
           });
         }
-        failed += 1;
+        if (noResume) {
+          skipped += 1;
+        } else {
+          failed += 1;
+        }
         continue;
       }
 
