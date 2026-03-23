@@ -144,7 +144,7 @@ export async function fetchResumeText(
 ): Promise<string | null> {
   try {
     // 1. Get application details (includes resume file URL) if not provided
-    let resumeUrl = downloadUrl;
+    let resumeUrl: string | null = downloadUrl ?? null;
     if (!resumeUrl) {
       const app = await ashbyPost<{
         results: {
@@ -153,7 +153,7 @@ export async function fetchResumeText(
         };
       }>("/application.info", { applicationId });
       const handle = extractResumeHandle(app?.results);
-      resumeUrl = handle?.downloadUrl ?? undefined;
+      resumeUrl = handle?.downloadUrl ?? null;
       if (!resumeUrl && handle?.fileId) {
         resumeUrl = await fetchFileDownloadUrl(handle.fileId);
       }
