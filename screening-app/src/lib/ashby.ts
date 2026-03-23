@@ -54,11 +54,21 @@ export async function fetchApplicationInfo(
 
 async function fetchFileDownloadUrl(fileId: string): Promise<string | null> {
   try {
-    const info = await ashbyPost<{ results?: { downloadUrl?: string } }>(
+    const info = await ashbyPost<{
+      results?: { downloadUrl?: string; contentType?: string; filename?: string; name?: string };
+    }>(
       "/file.info",
       { fileId }
     );
-    return info?.results?.downloadUrl ?? null;
+    const url = info?.results?.downloadUrl ?? null;
+    if (!url) {
+      console.warn("[Ashby] file.info returned no downloadUrl", {
+        fileId,
+        contentType: info?.results?.contentType ?? null,
+        filename: info?.results?.filename ?? info?.results?.name ?? null,
+      });
+    }
+    return url;
   } catch (err) {
     console.warn("[Ashby] file.info fetch failed:", { fileId, err });
     return null;
