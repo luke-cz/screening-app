@@ -161,6 +161,29 @@ export async function fetchJobDescription(
   return null;
 }
 
+export async function listPublicJobs(): Promise<{ id: string; title: string }[]> {
+  const jobBoard = process.env.ASHBY_JOB_BOARD_NAME;
+  if (!jobBoard) return [];
+
+  try {
+    const res = await fetch(
+      `${ASHBY_PUBLIC_BASE}/job-board/${jobBoard}?includeCompensation=false`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const jobs = Array.isArray(data?.jobs) ? data.jobs : [];
+    return jobs
+      .map((j: { id?: string; title?: string }) => ({
+        id: String(j?.id ?? ""),
+        title: String(j?.title ?? ""),
+      }))
+      .filter((j: { id: string; title: string }) => j.id && j.title);
+  } catch (err) {
+    console.warn("[Ashby] Public job board list failed:", err);
+    return [];
+  }
+}
+
 // ─── Push verdict back to Ashby ──────────────────────────────────────────────
 
 export async function pushVerdictToAshby(

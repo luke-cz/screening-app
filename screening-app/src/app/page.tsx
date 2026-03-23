@@ -23,6 +23,11 @@ interface WebhookStatus {
   errorCount: number;
 }
 
+interface JobOption {
+  id: string;
+  title: string;
+}
+
 // --- Helpers ------------------------------------------------------------------
 
 function verdictColor(v: Verdict): string {
@@ -281,6 +286,8 @@ export default function Home() {
   const [rescreenCount, setRescreenCount] = useState(10);
   const [rescreening, setRescreening] = useState(false);
   const [rescreenMessage, setRescreenMessage] = useState<string | null>(null);
+  const [jobs, setJobs] = useState<JobOption[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string>("");
 
   // Poll results
   const fetchResults = async () => {
@@ -293,6 +300,19 @@ export default function Home() {
     fetchResults();
     pollingRef.current = setInterval(fetchResults, 5000);
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
+  }, []);
+
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        const res = await fetch("/api/jobs");
+        const data = await res.json();
+        if (Array.isArray(data.jobs)) setJobs(data.jobs);
+      } catch {
+        // ignore
+      }
+    };
+    fetchJobs();
   }, []);
 
   useEffect(() => {
@@ -549,11 +569,49 @@ export default function Home() {
                 Role rubric
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-                <div>
-                  <label style={{ fontSize: 12, color: "var(--text3)", display: "block", marginBottom: 6 }}>Job title</label>
-                  <input value={candidate.jobTitle}
-                    onChange={(e) => setCandidate({ ...candidate, jobTitle: e.target.value })}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={{ fontSize: 12, color: "var(--text3)", display: "block", marginBottom: 6 }}>
+                  Pick an active role (Ashby)
+                </label>
+                <select
+                  value={selectedJobId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setSelectedJobId(id);
+                    const job = jobs.find((j) => j.id === id);
+                    if (job) {
+                      setCandidate({
+                        ...candidate,
+                        jobId: job.id,
+                        jobTitle: job.title,
+                      });
+                    }
+                  }}
+                  style={{
+                    width: "100%",
+                    background: "var(--bg)",
+                    border: "1px solid var(--border2)",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "8px 10px",
+                    color: "var(--text)",
+                    fontSize: 13,
+                    fontFamily: "var(--font)",
+                    outline: "none",
+                  }}
+                >
+                  <option value="">Select a role...</option>
+                  {jobs.map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {j.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: "var(--text3)", display: "block", marginBottom: 6 }}>Job title</label>
+                <input value={candidate.jobTitle}
+                  onChange={(e) => setCandidate({ ...candidate, jobTitle: e.target.value })}
                     style={{
                       width: "100%", background: "var(--bg)", border: "1px solid var(--border2)",
                       borderRadius: "var(--radius-sm)", padding: "8px 10px",
