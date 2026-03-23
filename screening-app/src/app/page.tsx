@@ -26,6 +26,7 @@ interface WebhookStatus {
 interface JobOption {
   id: string;
   title: string;
+  location?: string;
 }
 
 interface RubricPreview {
@@ -668,7 +669,7 @@ export default function Home() {
                   <option value="">Select a role...</option>
                   {jobs.map((j) => (
                     <option key={j.id} value={j.id}>
-                      {j.title}
+                      {j.location ? `${j.title} — ${j.location}` : j.title}
                     </option>
                   ))}
                 </select>

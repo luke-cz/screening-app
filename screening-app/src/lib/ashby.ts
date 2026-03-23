@@ -193,7 +193,9 @@ export async function fetchJobDescription(
   return null;
 }
 
-export async function listPublicJobs(): Promise<{ id: string; title: string }[]> {
+export async function listPublicJobs(): Promise<
+  { id: string; title: string; location?: string }[]
+> {
   const jobBoard = process.env.ASHBY_JOB_BOARD_NAME;
   if (!jobBoard) return [];
 
@@ -204,10 +206,26 @@ export async function listPublicJobs(): Promise<{ id: string; title: string }[]>
     if (!res.ok) return [];
     const data = await res.json();
     const jobs = Array.isArray(data?.jobs) ? data.jobs : [];
+
+    const formatLocation = (j: any): string => {
+      if (typeof j?.location === "string" && j.location.trim()) return j.location.trim();
+      const addr = j?.address?.postalAddress;
+      const parts = [
+        addr?.addressLocality,
+        addr?.addressRegion,
+        addr?.addressCountry,
+      ].filter(Boolean);
+      if (parts.length) return parts.join(", ");
+      if (j?.isRemote === true) return "Remote";
+      if (typeof j?.workplaceType === "string" && j.workplaceType) return j.workplaceType;
+      return "";
+    };
+
     return jobs
-      .map((j: { id?: string; title?: string }) => ({
+      .map((j: any) => ({
         id: String(j?.id ?? ""),
         title: String(j?.title ?? ""),
+        location: formatLocation(j),
       }))
       .filter((j: { id: string; title: string }) => j.id && j.title);
   } catch (err) {
