@@ -77,6 +77,30 @@ export async function fetchResumeText(
       return fileRes.text();
     }
 
+    // DOCX resume
+    if (
+      contentType.includes(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ) ||
+      contentType.includes("application/vnd.ms-word") ||
+      resumeUrl.toLowerCase().endsWith(".docx")
+    ) {
+      try {
+        const mammothModule = await import("mammoth");
+        const mammoth =
+          (mammothModule as { default?: { extractRawText: (o: { buffer: Buffer }) => Promise<{ value: string }> } })
+            .default ?? (mammothModule as unknown as { extractRawText: (o: { buffer: Buffer }) => Promise<{ value: string }> });
+
+        const buffer = Buffer.from(await fileRes.arrayBuffer());
+        const result = await mammoth.extractRawText({ buffer });
+        const text = result?.value?.trim();
+        return text && text.length > 0 ? text : null;
+      } catch (err) {
+        console.error("[Ashby] DOCX parse failed:", err);
+        return null;
+      }
+    }
+
     if (contentType.includes("pdf")) {
       try {
         const pdfParseModule = await import("pdf-parse");
