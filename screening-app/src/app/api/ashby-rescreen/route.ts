@@ -39,7 +39,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     let skipped = 0;
     let failed = 0;
     const failureReasons: Record<string, number> = {};
-    const samples: Array<{ id: string; reason: string; hasResume: boolean; fileIds?: number }> = [];
+    const samples: Array<{
+      id: string;
+      reason: string;
+      hasResume: boolean;
+      fileIds?: number;
+      fileIdSamples?: string[];
+    }> = [];
 
     const getStageName = (app: any): string | null => {
       return (
@@ -93,7 +99,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         candidateId
       );
       if (!resumeText) {
-        const fileIdCount = findFileIds(app).length;
+        const allFileIds = findFileIds(app);
+        const fileIdCount = allFileIds.length;
         const reasonKey =
           fileIdCount > 0 ? "resume_unparsed_or_download_failed" : "resume_missing";
         failureReasons[reasonKey] =
@@ -113,6 +120,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             reason: reasonKey,
             hasResume: Boolean(app?.resumeFileHandle?.downloadUrl),
             fileIds: fileIdCount,
+            fileIdSamples: allFileIds.slice(0, 3),
           });
         }
         if (reasonKey === "resume_missing") {

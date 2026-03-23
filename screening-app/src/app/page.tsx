@@ -435,7 +435,10 @@ export default function Home() {
         const sampleLine =
           Array.isArray(data.samples) && data.samples.length
             ? ` | sample: ${data.samples
-                .map((s: { id: string; hasResume: boolean; fileIds?: number }) => `${s.id} resume=${s.hasResume} fileIds=${s.fileIds ?? 0}`)
+                .map((s: { id: string; hasResume: boolean; fileIds?: number; fileIdSamples?: string[] }) => {
+                  const ids = s.fileIdSamples?.length ? ` ids=${s.fileIdSamples.join("|")}` : "";
+                  return `${s.id} resume=${s.hasResume} fileIds=${s.fileIds ?? 0}${ids}`;
+                })
                 .join(", ")}`
             : "";
         setRescreenMessage(
