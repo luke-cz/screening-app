@@ -87,6 +87,35 @@ function extractResumeHandle(source: any): { downloadUrl?: string; fileId?: stri
   return null;
 }
 
+function collectFileIds(value: any, ids: Set<string>, depth = 0): void {
+  if (!value || depth > 6) return;
+  if (typeof value === "string") return;
+
+  if (Array.isArray(value)) {
+    for (const item of value) collectFileIds(item, ids, depth + 1);
+    return;
+  }
+
+  if (typeof value === "object") {
+    for (const [key, v] of Object.entries(value)) {
+      if (typeof v === "string" && /fileId/i.test(key) && v.trim()) {
+        ids.add(v);
+      } else if (v && typeof v === "object") {
+        if (typeof (v as any).fileId === "string" && (v as any).fileId.trim()) {
+          ids.add((v as any).fileId);
+        }
+        collectFileIds(v, ids, depth + 1);
+      }
+    }
+  }
+}
+
+export function findFileIds(source: any): string[] {
+  const ids = new Set<string>();
+  collectFileIds(source, ids);
+  return Array.from(ids);
+}
+
 async function fetchCandidateResumeDownloadUrl(candidateId: string): Promise<string | null> {
   try {
     const info = await ashbyPost<{ results?: any }>(
@@ -96,6 +125,11 @@ async function fetchCandidateResumeDownloadUrl(candidateId: string): Promise<str
     const handle = extractResumeHandle(info?.results);
     if (handle?.downloadUrl) return handle.downloadUrl;
     if (handle?.fileId) return await fetchFileDownloadUrl(handle.fileId);
+    const ids = findFileIds(info?.results);
+    for (const id of ids) {
+      const url = await fetchFileDownloadUrl(id);
+      if (url) return url;
+    }
     return null;
   } catch (err) {
     console.warn("[Ashby] candidate.info fetch failed:", err);
@@ -122,6 +156,16 @@ export async function fetchResumeText(
       resumeUrl = handle?.downloadUrl ?? null;
       if (!resumeUrl && handle?.fileId) {
         resumeUrl = await fetchFileDownloadUrl(handle.fileId);
+      }
+      if (!resumeUrl) {
+        const ids = findFileIds(app?.results);
+        for (const id of ids) {
+          const url = await fetchFileDownloadUrl(id);
+          if (url) {
+            resumeUrl = url;
+            break;
+          }
+        }
       }
       const cid = candidateId ?? app?.results?.candidate?.id;
       if (!resumeUrl && cid) {

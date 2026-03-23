@@ -5,6 +5,7 @@ import {
   fetchResumeText,
   listRecentApplications,
   pushVerdictToAshby,
+  findFileIds,
 } from "@/lib/ashby";
 import { screenCandidate } from "@/lib/screener";
 import { getOrCreateRubric, upsertRubric } from "@/lib/rubrics";
@@ -92,6 +93,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
       if (!resumeText) {
         const noResume = !app?.resumeFileHandle?.downloadUrl;
+        const fileIdCount = findFileIds(app).length;
         const reasonKey = noResume
           ? "resume_missing"
           : "resume_unparsed";
@@ -102,6 +104,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           JSON.stringify({
             id: app.id,
             hasResume: Boolean(app?.resumeFileHandle?.downloadUrl),
+            fileIds: fileIdCount,
           })
         );
         if (samples.length < 5) {
