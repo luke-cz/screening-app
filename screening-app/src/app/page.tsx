@@ -298,6 +298,7 @@ export default function Home() {
   const [rubricPreview, setRubricPreview] = useState<RubricPreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [manualMode, setManualMode] = useState(false);
+  const [lastAutoAppliedJobId, setLastAutoAppliedJobId] = useState<string>("");
 
   // Poll results
   const fetchResults = async () => {
@@ -344,7 +345,19 @@ export default function Home() {
           body: JSON.stringify({ jobTitle, description: data.description }),
         });
         const previewData = await previewRes.json();
-        if (previewData.rubric) setRubricPreview(previewData.rubric);
+        if (previewData.rubric) {
+          setRubricPreview(previewData.rubric);
+
+          // Auto-apply rubric to form when selecting a role
+          if (jobId !== lastAutoAppliedJobId) {
+            setRubric({
+              mustHaves: previewData.rubric.mustHaves ?? [],
+              niceToHaves: previewData.rubric.niceToHaves ?? [],
+              dealbreakers: previewData.rubric.dealbreakers ?? [],
+            });
+            setLastAutoAppliedJobId(jobId);
+          }
+        }
       }
     } catch {
       // ignore
