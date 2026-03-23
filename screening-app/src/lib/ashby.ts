@@ -77,13 +77,21 @@ export async function fetchResumeText(
       return fileRes.text();
     }
 
-    // For PDFs you'd run a parser here (e.g. pdf-parse).
-    // Returning null for now — the webhook handler falls back gracefully.
     if (contentType.includes("pdf")) {
-      console.warn(
-        `[Ashby] PDF resume for application ${applicationId} — add pdf-parse to extract text`
-      );
-      return null;
+      try {
+        const pdfParseModule = await import("pdf-parse");
+        const pdfParse =
+          (pdfParseModule as { default?: (b: Buffer) => Promise<{ text: string }> })
+            .default ?? (pdfParseModule as unknown as (b: Buffer) => Promise<{ text: string }>);
+
+        const buffer = Buffer.from(await fileRes.arrayBuffer());
+        const data = await pdfParse(buffer);
+        const text = data?.text?.trim();
+        return text && text.length > 0 ? text : null;
+      } catch (err) {
+        console.error("[Ashby] PDF parse failed:", err);
+        return null;
+      }
     }
 
     return null;
