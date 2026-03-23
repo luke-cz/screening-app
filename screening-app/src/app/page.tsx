@@ -28,6 +28,12 @@ interface JobOption {
   title: string;
 }
 
+interface RubricPreview {
+  mustHaves: string[];
+  niceToHaves: string[];
+  dealbreakers: string[];
+}
+
 // --- Helpers ------------------------------------------------------------------
 
 function verdictColor(v: Verdict): string {
@@ -288,6 +294,9 @@ export default function Home() {
   const [rescreenMessage, setRescreenMessage] = useState<string | null>(null);
   const [jobs, setJobs] = useState<JobOption[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>("");
+  const [jobDescription, setJobDescription] = useState<string>("");
+  const [rubricPreview, setRubricPreview] = useState<RubricPreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   // Poll results
   const fetchResults = async () => {
@@ -314,6 +323,34 @@ export default function Home() {
     };
     fetchJobs();
   }, []);
+
+  const loadJobDetails = async (jobId: string, jobTitle: string) => {
+    setJobDescription("");
+    setRubricPreview(null);
+    if (!jobId || !jobTitle) return;
+
+    try {
+      const res = await fetch(
+        `/api/job?jobId=${encodeURIComponent(jobId)}&jobTitle=${encodeURIComponent(jobTitle)}`
+      );
+      const data = await res.json();
+      if (data.description) {
+        setJobDescription(data.description);
+        setPreviewLoading(true);
+        const previewRes = await fetch("/api/rubric-preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jobTitle, description: data.description }),
+        });
+        const previewData = await previewRes.json();
+        if (previewData.rubric) setRubricPreview(previewData.rubric);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -586,6 +623,7 @@ export default function Home() {
                         jobId: job.id,
                         jobTitle: job.title,
                       });
+                      loadJobDetails(job.id, job.title);
                     }
                   }}
                   style={{
@@ -678,6 +716,58 @@ export default function Home() {
                 </div>
               ))}
             </div>
+
+            {/* Job description + rubric preview */}
+            {(jobDescription || previewLoading || rubricPreview) && (
+              <div style={{
+                background: "var(--bg2)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius)",
+                padding: 16,
+                marginBottom: 16,
+              }}>
+                <div style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  color: "var(--text3)",
+                  marginBottom: 8,
+                }}>
+                  Job description + AI rubric preview
+                </div>
+                {jobDescription && (
+                  <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 12, maxHeight: 140, overflowY: "auto" }}>
+                    {jobDescription}
+                  </div>
+                )}
+                {previewLoading && (
+                  <div style={{ fontSize: 12, color: "var(--text3)" }}>Generating rubric preview...</div>
+                )}
+                {rubricPreview && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 6 }}>Must-haves</div>
+                      <div style={{ fontSize: 12, color: "var(--text2)" }}>
+                        {rubricPreview.mustHaves?.length ? rubricPreview.mustHaves.join(", ") : "None"}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 6 }}>Nice-to-haves</div>
+                      <div style={{ fontSize: 12, color: "var(--text2)" }}>
+                        {rubricPreview.niceToHaves?.length ? rubricPreview.niceToHaves.join(", ") : "None"}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 6 }}>Dealbreakers</div>
+                      <div style={{ fontSize: 12, color: "var(--text2)" }}>
+                        {rubricPreview.dealbreakers?.length ? rubricPreview.dealbreakers.join(", ") : "None"}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Candidate */}
             <div style={{
