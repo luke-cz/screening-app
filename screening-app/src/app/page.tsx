@@ -297,6 +297,7 @@ export default function Home() {
   const [jobDescription, setJobDescription] = useState<string>("");
   const [rubricPreview, setRubricPreview] = useState<RubricPreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
 
   // Poll results
   const fetchResults = async () => {
@@ -769,47 +770,65 @@ export default function Home() {
               </div>
             )}
 
-            {/* Candidate */}
+            {/* Candidate (manual mode) */}
             <div style={{
               background: "var(--bg2)", border: "1px solid var(--border)",
               borderRadius: "var(--radius)", padding: 20,
               display: "flex", flexDirection: "column", gap: 14,
             }}>
-              <div style={{ fontSize: 12, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text3)" }}>
-                Candidate resume
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ fontSize: 12, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text3)" }}>
+                  Manual test mode
+                </div>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text2)" }}>
+                  <input
+                    type="checkbox"
+                    checked={manualMode}
+                    onChange={(e) => setManualMode(e.target.checked)}
+                  />
+                  Show manual fields
+                </label>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                {[
-                  { label: "Name", key: "name" as const, placeholder: "Jane Smith" },
-                  { label: "Email", key: "email" as const, placeholder: "jane@example.com" },
-                ].map(({ label, key, placeholder }) => (
-                  <div key={key}>
-                    <label style={{ fontSize: 12, color: "var(--text3)", display: "block", marginBottom: 6 }}>{label}</label>
-                    <input value={candidate[key]}
-                      onChange={(e) => setCandidate({ ...candidate, [key]: e.target.value })}
-                      placeholder={placeholder}
+              {!manualMode ? (
+                <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                  Ashby inbound screening is active. Enable manual mode only for testing.
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {[
+                      { label: "Name", key: "name" as const, placeholder: "Jane Smith" },
+                      { label: "Email", key: "email" as const, placeholder: "jane@example.com" },
+                    ].map(({ label, key, placeholder }) => (
+                      <div key={key}>
+                        <label style={{ fontSize: 12, color: "var(--text3)", display: "block", marginBottom: 6 }}>{label}</label>
+                        <input value={candidate[key]}
+                          onChange={(e) => setCandidate({ ...candidate, [key]: e.target.value })}
+                          placeholder={placeholder}
+                          style={{
+                            width: "100%", background: "var(--bg)", border: "1px solid var(--border2)",
+                            borderRadius: "var(--radius-sm)", padding: "8px 10px",
+                            color: "var(--text)", fontSize: 13, fontFamily: "var(--font)", outline: "none",
+                          }} />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                    <label style={{ fontSize: 12, color: "var(--text3)", display: "block", marginBottom: 6 }}>Resume text</label>
+                    <textarea value={candidate.resumeText}
+                      onChange={(e) => setCandidate({ ...candidate, resumeText: e.target.value })}
                       style={{
-                        width: "100%", background: "var(--bg)", border: "1px solid var(--border2)",
-                        borderRadius: "var(--radius-sm)", padding: "8px 10px",
-                        color: "var(--text)", fontSize: 13, fontFamily: "var(--font)", outline: "none",
+                        flex: 1, minHeight: 260, width: "100%",
+                        background: "var(--bg)", border: "1px solid var(--border2)",
+                        borderRadius: "var(--radius-sm)", padding: "10px 12px",
+                        color: "var(--text)", fontSize: 12, fontFamily: "var(--mono)",
+                        outline: "none", resize: "vertical", lineHeight: 1.6,
                       }} />
                   </div>
-                ))}
-              </div>
-
-              <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                <label style={{ fontSize: 12, color: "var(--text3)", display: "block", marginBottom: 6 }}>Resume text</label>
-                <textarea value={candidate.resumeText}
-                  onChange={(e) => setCandidate({ ...candidate, resumeText: e.target.value })}
-                  style={{
-                    flex: 1, minHeight: 260, width: "100%",
-                    background: "var(--bg)", border: "1px solid var(--border2)",
-                    borderRadius: "var(--radius-sm)", padding: "10px 12px",
-                    color: "var(--text)", fontSize: 12, fontFamily: "var(--mono)",
-                    outline: "none", resize: "vertical", lineHeight: 1.6,
-                  }} />
-              </div>
+                </>
+              )}
             </div>
           </div>
 
