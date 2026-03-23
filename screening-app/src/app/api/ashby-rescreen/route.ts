@@ -7,6 +7,7 @@ import {
   pushVerdictToAshby,
   findFileIds,
 } from "@/lib/ashby";
+import { fetchFileInfoForDebug } from "@/lib/ashbyDebug";
 import { screenCandidate } from "@/lib/screener";
 import { getOrCreateRubric, upsertRubric } from "@/lib/rubrics";
 import { saveResult, hasProcessedAshbyApplication } from "@/lib/results";
@@ -45,6 +46,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       hasResume: boolean;
       fileIds?: number;
       fileIdSamples?: string[];
+      fileInfoSamples?: Array<{
+        fileId: string;
+        downloadUrl: string | null;
+        contentType: string | null;
+        filename: string | null;
+      }>;
     }> = [];
 
     const getStageName = (app: any): string | null => {
@@ -118,12 +125,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           })
         );
         if (samples.length < 5) {
+          const fileInfoSamples: Array<{
+            fileId: string;
+            downloadUrl: string | null;
+            contentType: string | null;
+            filename: string | null;
+          }> = [];
+          for (const fid of allFileIds.slice(0, 2)) {
+            try {
+              const info = await fetchFileInfoForDebug(fid);
+              fileInfoSamples.push(info);
+            } catch {
+              // ignore
+            }
+          }
           samples.push({
             id: app.id,
             reason: reasonKey,
             hasResume: Boolean(app?.resumeFileHandle?.downloadUrl),
             fileIds: fileIdCount,
             fileIdSamples: allFileIds.slice(0, 3),
+            fileInfoSamples,
           });
         }
         if (reasonKey === "resume_missing") {

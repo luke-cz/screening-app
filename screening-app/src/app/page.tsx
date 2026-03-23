@@ -435,9 +435,20 @@ export default function Home() {
         const sampleLine =
           Array.isArray(data.samples) && data.samples.length
             ? ` | sample: ${data.samples
-                .map((s: { id: string; hasResume: boolean; fileIds?: number; fileIdSamples?: string[] }) => {
+                .map((s: {
+                  id: string;
+                  hasResume: boolean;
+                  fileIds?: number;
+                  fileIdSamples?: string[];
+                  fileInfoSamples?: Array<{ fileId: string; downloadUrl: string | null }>;
+                }) => {
                   const ids = s.fileIdSamples?.length ? ` ids=${s.fileIdSamples.join("|")}` : "";
-                  return `${s.id} resume=${s.hasResume} fileIds=${s.fileIds ?? 0}${ids}`;
+                  const infos = s.fileInfoSamples?.length
+                    ? ` fileInfo=${s.fileInfoSamples
+                        .map((i) => `${i.fileId}:${i.downloadUrl ? "hasUrl" : "noUrl"}`)
+                        .join("|")}`
+                    : "";
+                  return `${s.id} resume=${s.hasResume} fileIds=${s.fileIds ?? 0}${ids}${infos}`;
                 })
                 .join(", ")}`
             : "";
