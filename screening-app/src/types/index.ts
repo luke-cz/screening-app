@@ -67,6 +67,10 @@ export interface AshbyApplication {
     email: string;
     resumeFileUrl?: string;
   };
+  resumeFileHandle?: {
+    downloadUrl?: string;
+    fileId?: string;
+  };
   job: {
     id: string;
     title: string;
