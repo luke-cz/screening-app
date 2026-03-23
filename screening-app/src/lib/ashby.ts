@@ -60,7 +60,7 @@ async function fetchFileDownloadUrl(fileId: string): Promise<string | null> {
     );
     return info?.results?.downloadUrl ?? null;
   } catch (err) {
-    console.warn("[Ashby] file.info fetch failed:", err);
+    console.warn("[Ashby] file.info fetch failed:", { fileId, err });
     return null;
   }
 }
@@ -247,7 +247,14 @@ export async function fetchResumeText(
 
     // 2. Fetch the resume file (PDF or plain text)
     const fileRes = await fetch(resumeUrl);
-    if (!fileRes.ok) return null;
+    if (!fileRes.ok) {
+      console.warn("[Ashby] Resume download failed", {
+        applicationId,
+        status: fileRes.status,
+        statusText: fileRes.statusText,
+      });
+      return null;
+    }
 
     const contentType = fileRes.headers.get("content-type") ?? "";
 
