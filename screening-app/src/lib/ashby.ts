@@ -153,7 +153,7 @@ export async function fetchResumeText(
         };
       }>("/application.info", { applicationId });
       const handle = extractResumeHandle(app?.results);
-      resumeUrl = handle?.downloadUrl ?? null;
+      resumeUrl = handle?.downloadUrl ?? undefined;
       if (!resumeUrl && handle?.fileId) {
         resumeUrl = await fetchFileDownloadUrl(handle.fileId);
       }
