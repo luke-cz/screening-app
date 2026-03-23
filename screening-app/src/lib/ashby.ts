@@ -130,9 +130,12 @@ function collectFileIds(value: any, ids: Set<string>, depth = 0): void {
   }
 }
 
-export function findFileIds(source: any): string[] {
+export function findFileIds(source: any, exclude?: Set<string>): string[] {
   const ids = new Set<string>();
   collectFileIds(source, ids);
+  if (exclude && exclude.size) {
+    for (const ex of exclude) ids.delete(ex);
+  }
   return Array.from(ids);
 }
 
@@ -256,7 +259,10 @@ export async function fetchResumeText(
         resumeUrl = await resolveDownloadUrlFromHandles(handles, { applicationId });
       }
       if (!resumeUrl) {
-        const ids = findFileIds(app?.results);
+        const exclude = new Set<string>();
+        exclude.add(applicationId);
+        if (candidateId) exclude.add(candidateId);
+        const ids = findFileIds(app?.results, exclude);
         for (const id of ids) {
           const url = await fetchFileDownloadUrl(id);
           if (url) {

@@ -99,7 +99,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         candidateId
       );
       if (!resumeText) {
-        const allFileIds = findFileIds(app);
+        const exclude = new Set<string>();
+        if (app?.id) exclude.add(app.id);
+        if (candidateId) exclude.add(candidateId);
+        const allFileIds = findFileIds(app, exclude);
         const fileIdCount = allFileIds.length;
         const reasonKey =
           fileIdCount > 0 ? "resume_unparsed_or_download_failed" : "resume_missing";
