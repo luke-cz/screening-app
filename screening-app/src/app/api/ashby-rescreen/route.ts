@@ -36,10 +36,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     let screened = 0;
     let skipped = 0;
     let failed = 0;
+    const failureReasons: Record<string, number> = {};
 
     for (const item of sorted) {
       const app = await fetchApplicationInfo(item.id);
       if (!app?.id || !app?.candidate || !app?.job?.id || !app?.job?.title) {
+        failureReasons.missing_application_data =
+          (failureReasons.missing_application_data ?? 0) + 1;
+        console.warn(
+          "[Rescreen] Missing application data",
+          JSON.stringify({ id: item.id })
+        );
         failed += 1;
         continue;
       }
@@ -54,6 +61,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         app?.resumeFileHandle?.downloadUrl
       );
       if (!resumeText) {
+        failureReasons.resume_missing_or_unparsed =
+          (failureReasons.resume_missing_or_unparsed ?? 0) + 1;
+        console.warn(
+          "[Rescreen] Resume missing or could not be parsed",
+          JSON.stringify({ id: app.id })
+        );
         failed += 1;
         continue;
       }
@@ -94,20 +107,35 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ashbyApplicationId: app.id,
       };
 
-      const result = await screenCandidate(
-        candidate,
-        rubricToUse.criteria,
-        rubricToUse.passThreshold,
-        rubricToUse.reviewThreshold
-      );
+      let result;
+      try {
+        result = await screenCandidate(
+          candidate,
+          rubricToUse.criteria,
+          rubricToUse.passThreshold,
+          rubricToUse.reviewThreshold
+        );
+      } catch (err) {
+        failureReasons.screening_failed =
+          (failureReasons.screening_failed ?? 0) + 1;
+        console.error("[Rescreen] Screening failed", err);
+        failed += 1;
+        continue;
+      }
 
       saveResult(result);
-      await pushVerdictToAshby(
-        app.id,
-        result.verdict,
-        result.overallScore,
-        result.summary
-      );
+      try {
+        await pushVerdictToAshby(
+          app.id,
+          result.verdict,
+          result.overallScore,
+          result.summary
+        );
+      } catch (err) {
+        failureReasons.push_verdict_failed =
+          (failureReasons.push_verdict_failed ?? 0) + 1;
+        console.error("[Rescreen] Failed to push verdict", err);
+      }
 
       screened += 1;
     }
@@ -117,6 +145,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       screened,
       skipped,
       failed,
+      failureReasons,
     });
   } catch (err) {
     console.error("[/api/ashby-rescreen]", err);

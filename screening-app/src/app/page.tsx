@@ -426,8 +426,15 @@ export default function Home() {
       });
       const data = await res.json();
       if (data.success) {
+        const reasons = data.failureReasons
+          ? Object.entries(data.failureReasons)
+              .map(([k, v]) => `${k}: ${v}`)
+              .join(", ")
+          : "";
         setRescreenMessage(
-          `Screened ${data.screened}, skipped ${data.skipped}, failed ${data.failed}`
+          `Screened ${data.screened}, skipped ${data.skipped}, failed ${data.failed}${
+            reasons ? ` (${reasons})` : ""
+          }`
         );
         fetchResults();
       } else {
