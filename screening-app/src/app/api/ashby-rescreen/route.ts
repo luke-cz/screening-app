@@ -87,7 +87,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
       const resumeText = await fetchResumeText(
         app.id,
-        app?.resumeFileHandle?.downloadUrl
+        app?.resumeFileHandle?.downloadUrl,
+        app?.candidate?.id
       );
       if (!resumeText) {
         const noResume = !app?.resumeFileHandle?.downloadUrl;

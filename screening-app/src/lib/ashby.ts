@@ -51,18 +51,82 @@ export async function fetchApplicationInfo(
 }
 // ─── Fetch resume text from an application ───────────────────────────────────
 
+async function fetchFileDownloadUrl(fileId: string): Promise<string | null> {
+  try {
+    const info = await ashbyPost<{ results?: { downloadUrl?: string } }>(
+      "/file.info",
+      { fileId }
+    );
+    return info?.results?.downloadUrl ?? null;
+  } catch (err) {
+    console.warn("[Ashby] file.info fetch failed:", err);
+    return null;
+  }
+}
+
+function extractResumeHandle(source: any): { downloadUrl?: string; fileId?: string } | null {
+  if (!source || typeof source !== "object") return null;
+  const s = source as any;
+  const handle =
+    s?.resumeFileHandle ??
+    s?.resumeFile ??
+    s?.resume ??
+    s?.candidateResume ??
+    null;
+
+  if (handle?.downloadUrl || handle?.fileId) return handle;
+
+  const fileId =
+    s?.resumeFileId ??
+    s?.resumeId ??
+    s?.candidateResumeFileId ??
+    s?.candidateResumeId ??
+    null;
+
+  if (fileId) return { fileId };
+  return null;
+}
+
+async function fetchCandidateResumeDownloadUrl(candidateId: string): Promise<string | null> {
+  try {
+    const info = await ashbyPost<{ results?: any }>(
+      "/candidate.info",
+      { candidateId }
+    );
+    const handle = extractResumeHandle(info?.results);
+    if (handle?.downloadUrl) return handle.downloadUrl;
+    if (handle?.fileId) return await fetchFileDownloadUrl(handle.fileId);
+    return null;
+  } catch (err) {
+    console.warn("[Ashby] candidate.info fetch failed:", err);
+    return null;
+  }
+}
+
 export async function fetchResumeText(
   applicationId: string,
-  downloadUrl?: string
+  downloadUrl?: string,
+  candidateId?: string
 ): Promise<string | null> {
   try {
     // 1. Get application details (includes resume file URL) if not provided
     let resumeUrl = downloadUrl;
     if (!resumeUrl) {
       const app = await ashbyPost<{
-        results: { resumeFileHandle?: { downloadUrl: string } };
+        results: {
+          resumeFileHandle?: { downloadUrl?: string; fileId?: string };
+          candidate?: { id?: string };
+        };
       }>("/application.info", { applicationId });
-      resumeUrl = app?.results?.resumeFileHandle?.downloadUrl;
+      const handle = extractResumeHandle(app?.results);
+      resumeUrl = handle?.downloadUrl ?? null;
+      if (!resumeUrl && handle?.fileId) {
+        resumeUrl = await fetchFileDownloadUrl(handle.fileId);
+      }
+      const cid = candidateId ?? app?.results?.candidate?.id;
+      if (!resumeUrl && cid) {
+        resumeUrl = await fetchCandidateResumeDownloadUrl(cid);
+      }
     }
     if (!resumeUrl) return null;
 

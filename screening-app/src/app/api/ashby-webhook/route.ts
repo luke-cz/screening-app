@@ -68,7 +68,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   // 3. Fetch resume text from Ashby
-  const resumeText = await fetchResumeText(ashbyApp.id);
+  const resumeText = await fetchResumeText(
+    ashbyApp.id,
+    ashbyApp?.resumeFileHandle?.downloadUrl,
+    ashbyApp?.candidate?.id
+  );
 
   if (!resumeText) {
     console.warn(
