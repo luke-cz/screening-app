@@ -704,7 +704,14 @@ export default function Home() {
                     min={0}
                     max={100}
                     value={passThreshold}
-                    onChange={(e) => setPassThreshold(Number(e.target.value))}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      const next = Number.isFinite(v) ? v : 70;
+                      setPassThreshold(next);
+                      if (reviewThreshold >= next) {
+                        setReviewThreshold(Math.max(0, next - 1));
+                      }
+                    }}
                     style={{
                       width: "100%", background: "var(--bg)", border: "1px solid var(--border2)",
                       borderRadius: "var(--radius-sm)", padding: "8px 10px",
@@ -719,7 +726,12 @@ export default function Home() {
                     min={0}
                     max={100}
                     value={reviewThreshold}
-                    onChange={(e) => setReviewThreshold(Number(e.target.value))}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      const next = Number.isFinite(v) ? v : 40;
+                      const clamped = Math.min(next, passThreshold - 1);
+                      setReviewThreshold(Math.max(0, clamped));
+                    }}
                     style={{
                       width: "100%", background: "var(--bg)", border: "1px solid var(--border2)",
                       borderRadius: "var(--radius-sm)", padding: "8px 10px",

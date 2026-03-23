@@ -26,8 +26,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       submittedAt: new Date().toISOString(),
     };
 
-    const passThreshold = typeof body.passThreshold === "number" ? body.passThreshold : 70;
-    const reviewThreshold = typeof body.reviewThreshold === "number" ? body.reviewThreshold : 40;
+    const clamp = (n: number) => Math.max(0, Math.min(100, n));
+    const rawPass =
+      typeof body.passThreshold === "number" && Number.isFinite(body.passThreshold)
+        ? body.passThreshold
+        : 70;
+    const rawReview =
+      typeof body.reviewThreshold === "number" && Number.isFinite(body.reviewThreshold)
+        ? body.reviewThreshold
+        : 40;
+    const passThreshold = clamp(rawPass);
+    let reviewThreshold = clamp(rawReview);
+    if (reviewThreshold >= passThreshold) {
+      reviewThreshold = Math.max(0, passThreshold - 1);
+    }
 
     const result = await screenCandidate(
       candidate,
