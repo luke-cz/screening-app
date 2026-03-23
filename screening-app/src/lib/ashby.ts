@@ -174,12 +174,33 @@ function collectFileHandles(value: any, out: FileHandle[], depth = 0): void {
   }
 }
 
-function pickBestHandle(handles: FileHandle[]): FileHandle | null {
-  if (!handles.length) return null;
-  const byName = handles.find((h) =>
-    typeof h.name === "string" && /resume|cv/i.test(h.name)
+function sortHandles(handles: FileHandle[]): FileHandle[] {
+  const byName = handles.filter(
+    (h) => typeof h.name === "string" && /resume|cv/i.test(h.name)
   );
-  return byName ?? handles[0];
+  const rest = handles.filter(
+    (h) => !(typeof h.name === "string" && /resume|cv/i.test(h.name))
+  );
+  return [...byName, ...rest];
+}
+
+async function resolveDownloadUrlFromHandles(
+  handles: FileHandle[],
+  context: { applicationId?: string; candidateId?: string }
+): Promise<string | null> {
+  const ordered = sortHandles(handles);
+  for (const h of ordered) {
+    if (h.downloadUrl) return h.downloadUrl;
+    if (h.fileId) {
+      const url = await fetchFileDownloadUrl(h.fileId);
+      if (url) return url;
+      console.warn("[Ashby] file.info returned no downloadUrl", {
+        fileId: h.fileId,
+        ...context,
+      });
+    }
+  }
+  return null;
 }
 
 async function fetchCandidateResumeDownloadUrl(candidateId: string): Promise<string | null> {
@@ -193,9 +214,8 @@ async function fetchCandidateResumeDownloadUrl(candidateId: string): Promise<str
     if (handle?.fileId) return await fetchFileDownloadUrl(handle.fileId);
     const handles = [] as FileHandle[];
     collectFileHandles(info?.results, handles);
-    const best = pickBestHandle(handles);
-    if (best?.downloadUrl) return best.downloadUrl;
-    if (best?.fileId) return await fetchFileDownloadUrl(best.fileId);
+    const url = await resolveDownloadUrlFromHandles(handles, { candidateId });
+    if (url) return url;
     return null;
   } catch (err) {
     console.warn("[Ashby] candidate.info fetch failed:", err);
@@ -227,12 +247,7 @@ export async function fetchResumeText(
       if (!resumeUrl) {
         const handles = [] as FileHandle[];
         collectFileHandles(app?.results, handles);
-        const best = pickBestHandle(handles);
-        if (best?.downloadUrl) {
-          resumeUrl = best.downloadUrl;
-        } else if (best?.fileId) {
-          resumeUrl = await fetchFileDownloadUrl(best.fileId);
-        }
+        resumeUrl = await resolveDownloadUrlFromHandles(handles, { applicationId });
       }
       const cid =
         candidateId ??
