@@ -112,6 +112,18 @@ function collectFileIds(value: any, ids: Set<string>, depth = 0): void {
         if (typeof (v as any).fileId === "string" && (v as any).fileId.trim()) {
           ids.add((v as any).fileId);
         }
+        // Some file objects use "id" instead of "fileId"
+        if (
+          typeof (v as any).id === "string" &&
+          (v as any).id.trim() &&
+          (typeof (v as any).contentType === "string" ||
+            typeof (v as any).filename === "string" ||
+            typeof (v as any).name === "string" ||
+            typeof (v as any).size === "number" ||
+            typeof (v as any).downloadUrl === "string")
+        ) {
+          ids.add((v as any).id);
+        }
         collectFileIds(v, ids, depth + 1);
       }
     }
@@ -124,6 +136,52 @@ export function findFileIds(source: any): string[] {
   return Array.from(ids);
 }
 
+type FileHandle = { fileId?: string; downloadUrl?: string; name?: string };
+
+function collectFileHandles(value: any, out: FileHandle[], depth = 0): void {
+  if (!value || depth > 6) return;
+  if (typeof value === "string") return;
+
+  if (Array.isArray(value)) {
+    for (const item of value) collectFileHandles(item, out, depth + 1);
+    return;
+  }
+
+  if (typeof value === "object") {
+    const v: any = value;
+    if (typeof v.downloadUrl === "string" || typeof v.fileId === "string") {
+      out.push({
+        downloadUrl: typeof v.downloadUrl === "string" ? v.downloadUrl : undefined,
+        fileId: typeof v.fileId === "string" ? v.fileId : undefined,
+        name: typeof v.name === "string" ? v.name : typeof v.filename === "string" ? v.filename : undefined,
+      });
+    } else if (
+      typeof v.id === "string" &&
+      (typeof v.contentType === "string" ||
+        typeof v.filename === "string" ||
+        typeof v.name === "string" ||
+        typeof v.size === "number")
+    ) {
+      out.push({
+        fileId: v.id,
+        name: typeof v.name === "string" ? v.name : typeof v.filename === "string" ? v.filename : undefined,
+      });
+    }
+
+    for (const child of Object.values(v)) {
+      if (child && typeof child === "object") collectFileHandles(child, out, depth + 1);
+    }
+  }
+}
+
+function pickBestHandle(handles: FileHandle[]): FileHandle | null {
+  if (!handles.length) return null;
+  const byName = handles.find((h) =>
+    typeof h.name === "string" && /resume|cv/i.test(h.name)
+  );
+  return byName ?? handles[0];
+}
+
 async function fetchCandidateResumeDownloadUrl(candidateId: string): Promise<string | null> {
   try {
     const info = await ashbyPost<{ results?: any }>(
@@ -133,11 +191,11 @@ async function fetchCandidateResumeDownloadUrl(candidateId: string): Promise<str
     const handle = extractResumeHandle(info?.results);
     if (handle?.downloadUrl) return handle.downloadUrl;
     if (handle?.fileId) return await fetchFileDownloadUrl(handle.fileId);
-    const ids = findFileIds(info?.results);
-    for (const id of ids) {
-      const url = await fetchFileDownloadUrl(id);
-      if (url) return url;
-    }
+    const handles = [] as FileHandle[];
+    collectFileHandles(info?.results, handles);
+    const best = pickBestHandle(handles);
+    if (best?.downloadUrl) return best.downloadUrl;
+    if (best?.fileId) return await fetchFileDownloadUrl(best.fileId);
     return null;
   } catch (err) {
     console.warn("[Ashby] candidate.info fetch failed:", err);
@@ -167,13 +225,13 @@ export async function fetchResumeText(
         resumeUrl = await fetchFileDownloadUrl(handle.fileId);
       }
       if (!resumeUrl) {
-        const ids = findFileIds(app?.results);
-        for (const id of ids) {
-          const url = await fetchFileDownloadUrl(id);
-          if (url) {
-            resumeUrl = url;
-            break;
-          }
+        const handles = [] as FileHandle[];
+        collectFileHandles(app?.results, handles);
+        const best = pickBestHandle(handles);
+        if (best?.downloadUrl) {
+          resumeUrl = best.downloadUrl;
+        } else if (best?.fileId) {
+          resumeUrl = await fetchFileDownloadUrl(best.fileId);
         }
       }
       const cid =
