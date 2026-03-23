@@ -76,6 +76,7 @@ function extractResumeHandle(source: any): { downloadUrl?: string; fileId?: stri
     null;
 
   if (handle?.downloadUrl || handle?.fileId) return handle;
+  if (handle?.id) return { fileId: handle.id };
 
   // Some responses nest the application or candidate object
   const nested = s?.application ?? s?.candidate ?? null;
