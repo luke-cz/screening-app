@@ -39,7 +39,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     let skipped = 0;
     let failed = 0;
     const failureReasons: Record<string, number> = {};
-    const samples: Array<{ id: string; reason: string; hasResume: boolean }> = [];
+    const samples: Array<{ id: string; reason: string; hasResume: boolean; fileIds?: number }> = [];
 
     const getStageName = (app: any): string | null => {
       return (
